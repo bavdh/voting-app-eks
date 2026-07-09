@@ -1,0 +1,45 @@
+<svg width="680" viewBox="0 0 680 320" xmlns="http://www.w3.org/2000/svg" role="img">
+  <title>Voting App Architecture</title>
+  <desc>Architecture diagram showing five services: vote frontend, redis, worker, postgres, and result frontend and how they connect</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M2 1L8 5L2 9" fill="none" stroke="#888" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+  </defs>
+
+  <!-- Vote app -->
+  <rect x="40" y="60" width="140" height="44" rx="8" fill="#E1F5EE" stroke="#0F6E56" stroke-width="0.5"/>
+  <text x="110" y="82" text-anchor="middle" dominant-baseline="central" font-family="sans-serif" font-size="14" font-weight="500" fill="#085041">Vote app</text>
+
+  <!-- Result app -->
+  <rect x="500" y="60" width="140" height="44" rx="8" fill="#E1F5EE" stroke="#0F6E56" stroke-width="0.5"/>
+  <text x="570" y="82" text-anchor="middle" dominant-baseline="central" font-family="sans-serif" font-size="14" font-weight="500" fill="#085041">Result app</text>
+
+  <!-- Redis -->
+  <rect x="40" y="220" width="140" height="44" rx="8" fill="#FAEEDA" stroke="#854F0B" stroke-width="0.5"/>
+  <text x="110" y="242" text-anchor="middle" dominant-baseline="central" font-family="sans-serif" font-size="14" font-weight="500" fill="#633806">Redis</text>
+
+  <!-- Worker -->
+  <rect x="270" y="220" width="140" height="44" rx="8" fill="#EEEDFE" stroke="#534AB7" stroke-width="0.5"/>
+  <text x="340" y="242" text-anchor="middle" dominant-baseline="central" font-family="sans-serif" font-size="14" font-weight="500" fill="#3C3489">Worker</text>
+
+  <!-- PostgreSQL -->
+  <rect x="500" y="220" width="140" height="44" rx="8" fill="#FAECE7" stroke="#993C1D" stroke-width="0.5"/>
+  <text x="570" y="242" text-anchor="middle" dominant-baseline="central" font-family="sans-serif" font-size="14" font-weight="500" fill="#712B13">PostgreSQL</text>
+
+  <!-- Vote → Redis -->
+  <line x1="110" y1="104" x2="110" y2="218" stroke="#888" stroke-width="1" marker-end="url(#arrow)"/>
+  <text x="84" y="166" text-anchor="middle" font-family="sans-serif" font-size="12" fill="#888">writes</text>
+
+  <!-- Redis → Worker -->
+  <line x1="182" y1="242" x2="268" y2="242" stroke="#888" stroke-width="1" marker-end="url(#arrow)"/>
+  <text x="225" y="234" text-anchor="middle" font-family="sans-serif" font-size="12" fill="#888">reads</text>
+
+  <!-- Worker → PostgreSQL -->
+  <line x1="412" y1="242" x2="498" y2="242" stroke="#888" stroke-width="1" marker-end="url(#arrow)"/>
+  <text x="455" y="234" text-anchor="middle" font-family="sans-serif" font-size="12" fill="#888">writes</text>
+
+  <!-- Result → PostgreSQL -->
+  <line x1="570" y1="104" x2="570" y2="218" stroke="#888" stroke-width="1" marker-end="url(#arrow)"/>
+  <text x="596" y="166" text-anchor="middle" font-family="sans-serif" font-size="12" fill="#888">reads</text>
+</svg>
