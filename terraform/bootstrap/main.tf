@@ -32,7 +32,7 @@ data "aws_iam_policy_document" "github_actions_oidc_trust_policy" {
 
     condition {
       test     = "StringEquals"
-      variable = "token.actions.githubusercontent.com:sub"
+      variable = "token.actions.githubusercontent.com:aud"
       values   = ["sts.amazonaws.com"]
     }
   }
