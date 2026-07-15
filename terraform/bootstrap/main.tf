@@ -59,7 +59,60 @@ data "aws_iam_policy_document" "github_actions_oidc_trust_document" {
   }
 }
 
-resource "aws_iam_role" "voting_app_eks_deployment_role" {
+resource "aws_iam_role" "eks_deployment_role" {
   name               = "VotingAppEKSDeploymentRole"
   assume_role_policy = data.aws_iam_policy_document.github_actions_oidc_trust_document.json
+}
+
+# Add ecr deployment role
+data "aws_iam_policy_document" "ecr_deployment_policy_document" {
+  statement {
+    sid    = "RepoManagement"
+    effect = "Allow"
+    actions = [
+      "ecr:CreateRepository",
+      "ecr:DeleteRepository",
+      "ecr:DescribeRepositories",
+      "ecr:TagResource",
+      "ecr:UntagResource",
+      "ecr:ListTagsForResource",
+      "ecr:PutImageTagMutability"
+    ]
+    resources = ["*"]
+  }
+
+  statement {
+    sid    = "ECRAuth"
+    effect = "Allow"
+    actions = [
+      "ecr:GetAuthorizationToken"
+    ]
+    resources = ["*"]
+  }
+
+  statement {
+    sid    = "ECRPushPull"
+    effect = "Allow"
+    actions = [
+      "ecr:BatchCheckLayerAvailability",
+      "ecr:GetDownloadUrlForLayer",
+      "ecr:BatchGetImage",
+      "ecr:PutImage",
+      "ecr:InitiateLayerUpload",
+      "ecr:UploadLayerPart",
+      "ecr:CompleteLayerUpload"
+    ]
+    resources = ["arn:aws:ecr:${var.aws_region}:${var.aws_account}:repository/voting-app/*"]
+  }
+}
+
+resource "aws_iam_role" "ecr_deployment_role" {
+  name               = "VotingAppEksECRDeploymentRole"
+  assume_role_policy = data.aws_iam_policy_document.github_actions_oidc_trust_document.json
+}
+
+resource "aws_iam_role_policy" "ecr_deployment_role_inline_policy" {
+  name   = "VotingAppEksECRDeploymentPolicy"
+  role   = aws_iam_role.ecr_deployment_role.id
+  policy = data.aws_iam_policy_document.ecr_deployment_policy_document.json
 }
