@@ -1,0 +1,97 @@
+name: Push images to ECR
+
+on:
+  workflow_dispatch:
+
+env:
+  AWS_ACCOUNT: 653236170203
+  AWS_REGION: ap-southeast-1
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  push-vote-image-to-ecr:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ env.AWS_ACCOUNT }}:role/GithubVotingAppEKSOIDCRole
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Assume ECR Push Role
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ env.AWS_ACCOUNT }}:role/VotingAppEksECRDeploymentRole
+          aws-region: ${{ env.AWS_REGION }}
+          role-chaining: true
+
+      - name: Build vote image
+        run: docker build --tag voting-app/vote:${{ github.sha }} ./vote
+
+      - name: Push Vote image to ECR
+        uses: jwalton/gh-ecr-push@v2
+        with:
+          region: ${{ env.AWS_REGION }}
+          image: voting-app/vote:${{ github.sha }}
+
+  push-worker-image-to-ecr:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ env.AWS_ACCOUNT }}:role/GithubVotingAppEKSOIDCRole
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Assume ECR Push Role
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ env.AWS_ACCOUNT }}:role/VotingAppEksECRDeploymentRole
+          aws-region: ${{ env.AWS_REGION }}
+          role-chaining: true
+
+      - name: Build worker image
+        run: docker build --tag voting-app/worker:${{ github.sha }} ./worker
+
+      - name: Push Worker image to ECR
+        uses: jwalton/gh-ecr-push@v2
+        with:
+          region: ${{ env.AWS_REGION }}
+          image: voting-app/worker:${{ github.sha }}
+
+  push-result-image-to-ecr:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ env.AWS_ACCOUNT }}:role/GithubVotingAppEKSOIDCRole
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Assume ECR Push Role
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ env.AWS_ACCOUNT }}:role/VotingAppEksECRDeploymentRole
+          aws-region: ${{ env.AWS_REGION }}
+          role-chaining: true
+
+      - name: Build result image
+        run: docker build --tag voting-app/result:${{ github.sha }} ./result
+
+      - name: Push Result image to ECR
+        uses: jwalton/gh-ecr-push@v2
+        with:
+          region: ${{ env.AWS_REGION }}
+          image: voting-app/result:${{ github.sha }}
