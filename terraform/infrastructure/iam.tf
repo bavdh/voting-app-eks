@@ -50,3 +50,39 @@ resource "aws_iam_role_policy_attachment" "eks_node_policies" {
   policy_arn = each.value
 }
 
+# add secrets permssion for eso secrets policy 
+data "aws_iam_policy_document" "eso_secrets_access" {
+  statement {
+    effect    = "Allow"
+    actions   = ["secretsmanager:GetSecretValue"]
+    resources = [aws_db_instance.main.master_user_secret[0].secret_arn]
+  }
+}
+
+resource "aws_iam_policy" "eso_secrets_access" {
+  name   = "${local.project_name}-eso-secrets-access"
+  policy = data.aws_iam_policy_document.eso_secrets_access.json
+}
+
+# Add trust pod identity
+data "aws_iam_policy_document" "eso_pod_identity_trust" {
+  statement {
+    effect  = "Allow"
+    actions = ["sts:AssumeRole", "sts:TagSession"]
+
+    principals {
+      type        = "Service"
+      identifiers = ["pods.eks.amazonaws.com"]
+    }
+  }
+}
+
+resource "aws_iam_role" "eso_role" {
+  name               = "${local.project_name}-eso-role"
+  assume_role_policy = data.aws_iam_policy_document.eso_pod_identity_trust.json
+}
+
+resource "aws_iam_role_policy_attachment" "eso_secrets_attach" {
+  role       = aws_iam_role.eso_role.name
+  policy_arn = aws_iam_policy.eso_secrets_access.arn
+}

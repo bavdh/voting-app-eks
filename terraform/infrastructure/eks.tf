@@ -10,3 +10,17 @@ resource "aws_eks_cluster" "main" {
 
   depends_on = [aws_iam_role_policy_attachment.eks_cluster_policy_attachment]
 }
+
+resource "aws_eks_addon" "pod_identity" {
+  cluster_name = aws_eks_cluster.main.name
+  addon_name   = "eks-prod-identity-agent"
+}
+
+resource "aws_eks_pod_identity_association" "eso" {
+  cluster_name    = aws_eks_cluster.main.name
+  namespace       = "external-secrets"
+  service_account = "external-secrets"
+  role_arn        = aws_iam_role.eso_role.arn
+
+  depends_on = [helm_release.external_secrets]
+}
