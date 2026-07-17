@@ -61,7 +61,7 @@ data "aws_iam_policy_document" "eso_secrets_access" {
 
 resource "aws_iam_policy" "eso_secrets_access" {
   name   = "${local.project_name}-eso-secrets-access"
-  policy = data.aws_iam_policy_document.eso_secrets.access.json
+  policy = data.aws_iam_policy_document.eso_secrets_access.json
 }
 
 # Add trust pod identity
