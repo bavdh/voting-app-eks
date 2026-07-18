@@ -16,8 +16,11 @@ namespace Worker
         {
             try
             {
-                var pgsql = OpenDbConnection("Server=db;Username=postgres;Password=postgres;");
-                var redisConn = OpenRedisConnection("redis");
+                var pgsql = OpenDbConnection(GetPostgresConnectionString());
+		var redisConn = OpenRedisConnection(
+		    Environment.GetEnvironmentVariable("REDIS_HOST") ?? "redis",
+                    int.Parse(Environment.GetEnvironmentVariable("REDIS_PORT") ?? "6379")
+		);
                 var redis = redisConn.GetDatabase();
 
                 // Keep alive is not implemented in Npgsql yet. This workaround was recommended:
@@ -34,7 +37,10 @@ namespace Worker
                     // Reconnect redis if down
                     if (redisConn == null || !redisConn.IsConnected) {
                         Console.WriteLine("Reconnecting Redis");
-                        redisConn = OpenRedisConnection("redis");
+			redisConn = OpenRedisConnection(
+			    Environment.GetEnvironmentVariable("REDIS_HOST") ?? "redis",
+			    int.Parse(Environment.GetEnvironmentVariable("REDIS_PORT") ?? "6379")
+			);
                         redis = redisConn.GetDatabase();
                     }
                     string json = redis.ListLeftPopAsync("votes").Result;
@@ -46,7 +52,7 @@ namespace Worker
                         if (!pgsql.State.Equals(System.Data.ConnectionState.Open))
                         {
                             Console.WriteLine("Reconnecting DB");
-                            pgsql = OpenDbConnection("Server=db;Username=postgres;Password=postgres;");
+                            pgsql = OpenDbConnection(GetPostgresConnectionString());
                         }
                         else
                         { // Normal +1 vote requested
@@ -64,6 +70,17 @@ namespace Worker
                 Console.Error.WriteLine(ex.ToString());
                 return 1;
             }
+        }
+
+	private static string GetPostgresConnectionString()
+        {
+            var host     = Environment.GetEnvironmentVariable("POSTGRES_HOST")     ?? "db";
+            var port     = Environment.GetEnvironmentVariable("POSTGRES_PORT")     ?? "5432";
+            var user     = Environment.GetEnvironmentVariable("POSTGRES_USER")     ?? "postgres";
+            var password = Environment.GetEnvironmentVariable("POSTGRES_PASSWORD") ?? "postgres";
+            var database = Environment.GetEnvironmentVariable("POSTGRES_DB")       ?? "postgres";
+
+            return $"Server={host};Port={port};Username={user};Password={password};Database={database};SSL Mode=Require;Trust Server Certificate=true";
         }
 
         private static NpgsqlConnection OpenDbConnection(string connectionString)
