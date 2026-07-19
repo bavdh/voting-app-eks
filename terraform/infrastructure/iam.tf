@@ -86,3 +86,25 @@ resource "aws_iam_role_policy_attachment" "eso_secrets_attach" {
   role       = aws_iam_role.eso_role.name
   policy_arn = aws_iam_policy.eso_secrets_access.arn
 }
+
+# Add required policies for kubernetes deployment
+data "aws_iam_role" "kubernetes_deployment" {
+  name = "VotingAppEKSKubernetesDeploymentRole"
+}
+
+data "aws_iam_policy_document" "kubernetes_deployment" {
+  statement = {
+    effect = "Allow"
+    actions = [
+      "eks:DescribeCluster",
+      "eks:ListClusters",
+    ]
+    resources = [aws_eks_cluster.main.arn]
+  }
+}
+
+resource "aws_iam_role_policy" "kubernetes_deployment" {
+  name   = "${local.project_name}-kubernetes-deployment"
+  role   = aws_iam_role.kubernetes_deployment.id
+  policy = data.aws_iam_policy_document.kubernetes_deployment.json
+}
