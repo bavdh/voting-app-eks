@@ -116,3 +116,9 @@ resource "aws_iam_role_policy" "ecr_deployment_role_inline_policy" {
   role   = aws_iam_role.ecr_deployment_role.id
   policy = data.aws_iam_policy_document.ecr_deployment_policy_document.json
 }
+
+# Add kubernetes deployment role
+resource "aws_iam_role" "kubernetes_deployment_role" {
+  name               = "VotingAppEKSKubernetesDeploymentRole"
+  assume_role_policy = data.aws_iam_policy_document.github_actions_oidc_trust_document.json
+}
