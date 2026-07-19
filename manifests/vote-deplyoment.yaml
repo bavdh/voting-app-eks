@@ -16,9 +16,13 @@ spec:
     spec:
       containers:
         - name: vote
-          image: __ACCOUNT_ID__.dkr.ecr.__REGION__.amazonaws.com/voting-app/vote:__IMAGE_TAG__
+          image: __AWS_ACCOUNT_ID__.dkr.ecr.__AWS_REGION__.amazonaws.com/voting-app/vote:__IMAGE_TAG__
+          imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
+          envFrom:
+            - configMapRef:
+                name: voting-app-config
 
 ---
 apiVersion: v1
