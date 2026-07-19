@@ -16,10 +16,24 @@ spec:
     spec:
       containers:
         - name: result
-          image: __ACCOUNT_ID__.dkr.ecr.__REGION__.amazonaws.com/voting-app/result:__IMAGE_TAG__
-
+          image: __AWS_ACCOUNT_ID__.dkr.ecr.__AWS_REGION__.amazonaws.com/voting-app/result:__IMAGE_TAG__
+          imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
+          envFrom:
+            - configMapRef:
+                name: voting-app-config
+          env:
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: voting-app-db-secret
+                  key: username
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: voting-app-db-secret
+                  key: password
 
 ---
 apiVersion: v1
