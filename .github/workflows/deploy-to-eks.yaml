@@ -32,7 +32,7 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
           role-chaining: true
 
-      - name: Substitute account config
+      - name: Substitute Account config
         run: |
           sed -i "s|__AWS_ACCOUNT_ID__|${{ env.AWS_ACCOUNT }}|g" manifests/vote-deployment.yaml manifests/worker-deployment.yaml manifests/result-deployment.yaml
           sed -i "s|__AWS_REGION__|${{ env.AWS_REGION }}|g" manifests/external-secrets.yaml
@@ -48,6 +48,10 @@ jobs:
           sed -i "s|__POSTGRES_PORT__|${{ vars.POSTGRES_PORT }}|g" manifests/configmap.yaml
           sed -i "s|__POSTGRES_DB__|${{ vars.POSTGRES_DB }}|g" manifests/configmap.yaml
           sed -i "s|__POSTGRES_SECRET_NAME__|${{ vars.POSTGRES_SECRET_NAME }}|g" manifests/external-secrets.yaml
+
+      - name: Substitue image tags
+        run: |
+          sed -i "s|__IMAGE_TAG__|${{ vars.IMAGE_TAG }}|g" manifests/vote-deployment.yaml manifests/worker-deployment.yaml manifests/result-deployment.yaml
 
       - name: Update kubeconfig
         run: aws eks update-kubeconfig --name ${{ env.CLUSTER_NAME }} --region ${{ env.AWS_REGION }}
