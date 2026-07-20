@@ -28,7 +28,7 @@ jobs:
       - name: Assume EKS Deployment Role
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::${{ env.AWS_ACCOUNT }}:role/VotingAppEKSDeploymentRole
+          role-to-assume: arn:aws:iam::${{ env.AWS_ACCOUNT }}:role/VotingAppEKSKubernetesDeploymentRole
           aws-region: ${{ env.AWS_REGION }}
           role-chaining: true
 
