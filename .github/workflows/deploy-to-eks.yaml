@@ -57,18 +57,15 @@ jobs:
         run: aws eks update-kubeconfig --name ${{ env.CLUSTER_NAME }} --region ${{ env.AWS_REGION }}
 
       - name: Verify cluster access
-        run: kubectl get nodes
+        run: kubectl get deployments -n default
 
-      - name: Verify ESO is running
-        run: kubectl get pods -n external-secrets
+      - name: Apply external secrets
+        run: kubectl apply -f manifests/external-secrets.yaml
 
       - name: Wait for secret sync
         run: |
           kubectl wait --for=condition=Ready externalsecret/rds-credentials \
-            --timeout=60s
-
-      - name: Apply external secrets
-        run: kubectl apply -f manifests/external-secrets.yaml
+            -n default --timeout=60s
 
       - name: Apply configmap
         run: kubectl apply -f manifests/configmap.yaml
@@ -81,3 +78,9 @@ jobs:
 
       - name: Apply result deployment
         run: kubectl apply -f manifests/result-deployment.yaml
+
+      - name: Verify rollout
+        run: |
+          kubectl rollout status deployment/vote -n default --timeout=120s
+          kubectl rollout status deployment/worker -n default --timeout=120s
+          kubectl rollout status deployment/result -n default --timeout=120s
