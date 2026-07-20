@@ -8,12 +8,16 @@ resource "aws_eks_cluster" "main" {
     subnet_ids = concat(aws_subnet.public[*].id, aws_subnet.private[*].id)
   }
 
+  access_config {
+    authentication_mode = "API"
+  }
+
   depends_on = [aws_iam_role_policy_attachment.eks_cluster_policy_attachment]
 }
 
 resource "aws_eks_addon" "pod_identity" {
   cluster_name = aws_eks_cluster.main.name
-  addon_name   = "eks-prod-identity-agent"
+  addon_name   = "eks-pod-identity-agent"
 }
 
 resource "aws_eks_pod_identity_association" "eso" {
@@ -23,4 +27,31 @@ resource "aws_eks_pod_identity_association" "eso" {
   role_arn        = aws_iam_role.eso_role.arn
 
   depends_on = [helm_release.external_secrets]
+}
+
+data "aws_iam_role" "kubernetes_deploy_role" {
+  name = "VotingAppEKSKubernetesDeploymentRole"
+}
+
+resource "aws_eks_access_entry" "kubernetes_deploy" {
+  cluster_name      = aws_eks_cluster.main.name
+  principal_arn     = data.aws_iam_role.kubernetes_deploy_role.arn
+  kubernetes_groups = ["k8s-deploy-group"]
+}
+
+data "aws_caller_identity" "current" {}
+
+resource "aws_eks_access_entry" "admin" {
+  cluster_name  = aws_eks_cluster.main.name
+  principal_arn = data.aws_caller_identity.current.arn
+}
+
+resource "aws_eks_access_policy_association" "admin" {
+  cluster_name  = aws_eks_cluster.main.name
+  principal_arn = data.aws_caller_identity.current.arn
+  policy_arn    = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy"
+
+  access_scope {
+    type = "cluster"
+  }
 }
