@@ -122,3 +122,20 @@ resource "aws_iam_role" "kubernetes_deployment_role" {
   name               = "VotingAppEKSKubernetesDeploymentRole"
   assume_role_policy = data.aws_iam_policy_document.github_actions_oidc_trust_document.json
 }
+
+data "aws_iam_policy_document" "kubernetes_deployment_permissions" {
+  statement {
+    sid    = "KubernetesDeployment"
+    effect = "Allow"
+    actions = [
+      "eks: DescribeCluster"
+    ]
+    resources = ["arn:aws:eks:${var.aws_region}:${var.aws_account}:cluster/voting-app-eks"]
+  }
+}
+
+resource "aws_iam_role_policy" "kubernetes_deployment_inline_policy" {
+  name   = "kubernetes-deployment-policy"
+  role   = aws_iam_role.kubernetes_deployment_role.id
+  policy = data.aws_iam_policy_document.kubernetes_deployment_permissions.json
+}
