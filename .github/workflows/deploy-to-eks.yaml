@@ -34,7 +34,7 @@ jobs:
 
       - name: Substitute account config
         run: |
-          sed -i "s|__AWS_ACCOUNT_ID__|${{ env.AWS_ACCOUNT }}|g" manifests/vote-deployment.yaml manifests/worker-deployment.yaml manifests/result.yaml
+          sed -i "s|__AWS_ACCOUNT_ID__|${{ env.AWS_ACCOUNT }}|g" manifests/vote-deployment.yaml manifests/worker-deployment.yaml manifests/result-deployment.yaml
           sed -i "s|__AWS_REGION__|${{ env.AWS_REGION }}|g" manifests/external-secrets.yaml
 
       - name: Substitute Redis config
