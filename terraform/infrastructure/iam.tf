@@ -93,7 +93,7 @@ data "aws_iam_role" "kubernetes_deployment" {
 }
 
 data "aws_iam_policy_document" "kubernetes_deployment" {
-  statement = {
+  statement {
     effect = "Allow"
     actions = [
       "eks:DescribeCluster",
@@ -105,6 +105,6 @@ data "aws_iam_policy_document" "kubernetes_deployment" {
 
 resource "aws_iam_role_policy" "kubernetes_deployment" {
   name   = "${local.project_name}-kubernetes-deployment"
-  role   = aws_iam_role.kubernetes_deployment.id
+  role   = data.aws_iam_role.kubernetes_deployment.id
   policy = data.aws_iam_policy_document.kubernetes_deployment.json
 }
