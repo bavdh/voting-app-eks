@@ -1,0 +1,79 @@
+name: Deploy to EKS
+
+on:
+  workflow_dispatch:
+
+env:
+  AWS_ACCOUNT: 653236170203
+  AWS_REGION: ap-southeast-1
+  CLUSTER_NAME: voting-app-eks
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy-kubernetes:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ env.AWS_ACCOUNT }}:role/GithubVotingAppEKSOIDCRole
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Assume EKS Deployment Role
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ env.AWS_ACCOUNT }}:role/VotingAppEKSDeploymentRole
+          aws-region: ${{ env.AWS_REGION }}
+          role-chaining: true
+
+      - name: Substitute account config
+        run: |
+          sed -i "s|__AWS_ACCOUNT_ID__|${{ env.AWS_ACCOUNT }}|g" manifests/vote-deployment.yaml manifests/worker-deployment.yaml manifests/result.yaml
+          sed -i "s|__AWS_REGION__|${{ env.AWS_REGION }}|g" manifests/external-secrets.yaml
+
+      - name: Substitute Redis config
+        run: |
+          sed -i "s|__REDIS_ENDPOINT__|${{ vars.REDIS_ENDPOINT }}|g" manifests/configmap.yaml
+          sed -i "s|__REDIS_PORT__|${{ vars.REDIS_PORT }}|g" manifests/configmap.yaml
+
+      - name: Substitute Postgres config
+        run: |
+          sed -i "s|__POSTGRES_ENDPOINT__|${{ vars.POSTGRES_ENDPOINT }}|g" manifests/configmap.yaml
+          sed -i "s|__POSTGRES_PORT__|${{ vars.POSTGRES_PORT }}|g" manifests/configmap.yaml
+          sed -i "s|__POSTGRES_DB__|${{ vars.POSTGRES_DB }}|g" manifests/configmap.yaml
+          sed -i "s|__POSTGRES_SECRET_NAME__|${{ vars.POSTGRES_SECRET_NAME }}|g" manifests/external-secrets.yaml
+
+      - name: Update kubeconfig
+        run: aws eks update-kubeconfig --name ${{ env.CLUSTER_NAME }} --region ${{ env.AWS_REGION }}
+
+      - name: Verify cluster access
+        run: kubectl get nodes
+
+      - name: Verify ESO is running
+        run: kubectl get pods -n external-secrets
+
+      - name: Wait for secret sync
+        run: |
+          kubectl wait --for=condition=Ready externalsecret/rds-credentials \
+            --timeout=60s
+
+      - name: Apply external secrets
+        run: kubectl apply -f manifests/external-secrets.yaml
+
+      - name: Apply configmap
+        run: kubectl apply -f manifests/configmap.yaml
+
+      - name: Apply vote deployment
+        run: kubectl apply -f manifests/vote-deployment.yaml
+
+      - name: Apply worker deployment
+        run: kubectl apply -f manifests/worker-deployment.yaml
+
+      - name: Apply result deployment
+        run: kubectl apply -f manifests/result-deployment.yaml
