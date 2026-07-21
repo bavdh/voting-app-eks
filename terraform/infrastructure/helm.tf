@@ -13,5 +13,6 @@ resource "helm_release" "external_secrets" {
 
   depends_on = [
     aws_eks_node_group.general,
+    aws_iam_role.eso_role,
   ]
 }
