@@ -10,9 +10,9 @@ resource "aws_eks_node_group" "general" {
   instance_types = ["t3.small"]
 
   scaling_config {
-    desired_size = 1
+    desired_size = 2
     max_size     = 3
-    min_size     = 1
+    min_size     = 2
   }
 
   update_config {
@@ -26,7 +26,4 @@ resource "aws_eks_node_group" "general" {
   depends_on = [
     aws_iam_role_policy_attachment.eks_node_policies
   ]
-  lifecycle {
-    ignore_changes = [scaling_config[0].desired_size]
-  }
 }
