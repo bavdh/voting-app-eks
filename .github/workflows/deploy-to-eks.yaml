@@ -79,6 +79,12 @@ jobs:
       - name: Apply result deployment
         run: kubectl apply -f manifests/result-deployment.yaml
 
+      - name: Restart deployments to pick up config changes
+        run: |
+          kubectl rollout restart deployment/vote -n default
+          kubectl rollout restart deployment/worker -n default
+          kubectl rollout restart deployment/result -n default
+
       - name: Verify rollout
         run: |
           kubectl rollout status deployment/vote -n default --timeout=120s
