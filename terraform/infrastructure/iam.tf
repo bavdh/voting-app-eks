@@ -108,3 +108,32 @@ resource "aws_iam_role_policy" "kubernetes_deployment" {
   role   = data.aws_iam_role.kubernetes_deployment.id
   policy = data.aws_iam_policy_document.kubernetes_deployment.json
 }
+
+
+# ALB Permissions 
+resource "aws_iam_policy" "alb_controller" {
+  name   = "${local.project_name}-alb-controller-policy"
+  policy = file("${path.module}/alb-controller-policy.json")
+}
+
+data "aws_iam_policy_document" "alb_controller_trust" {
+  statement {
+    effect  = "Allow"
+    actions = ["sts:AssumeRole", "sts:TagSession"]
+
+    principals {
+      type        = "Service"
+      identifiers = ["pods.eks.amazonaws.com"]
+    }
+  }
+}
+
+resource "aws_iam_role" "alb_controller" {
+  name               = "${local.project_name}-alb-controller-role"
+  assume_role_policy = data.aws_iam_policy_document.alb_controller_trust.json
+}
+
+resource "aws_iam_role_policy_attachment" "alb_controller" {
+  role       = aws_iam_role.alb_controller.name
+  policy_arn = aws_iam_policy.alb_controller.arn
+}
