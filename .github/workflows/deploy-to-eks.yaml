@@ -88,6 +88,9 @@ jobs:
       - name: Apply result deployment
         run: kubectl apply -f manifests/result-deployment.yaml
 
+      - name: Apply ingress
+        run: kubectl apply -f manifests/ingress.yaml
+
       - name: Restart deployments if config changed
         if: steps.configmap-diff.outputs.changed == 'true'
         run: |
