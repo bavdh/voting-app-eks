@@ -25,8 +25,6 @@ resource "aws_eks_pod_identity_association" "eso" {
   namespace       = "external-secrets"
   service_account = "external-secrets"
   role_arn        = aws_iam_role.eso_role.arn
-
-  depends_on = [helm_release.external_secrets]
 }
 
 data "aws_iam_role" "kubernetes_deploy_role" {

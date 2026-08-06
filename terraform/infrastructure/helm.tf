@@ -12,6 +12,7 @@ resource "helm_release" "external_secrets" {
   }
 
   depends_on = [
+    aws_eks_pod_identity_association.eso,
     aws_eks_node_group.general,
     helm_release.alb_controller,
   ]
