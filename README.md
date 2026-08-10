@@ -1,8 +1,8 @@
 # voting-app-k8s
 
-A hands-on Kubernetes deployment of the [Docker Example Voting App](https://github.com/dockersamples/example-voting-app). This project focuses on deploying a multi-service distributed application on a local Kubernetes cluster using Minikube, covering core Kubernetes concepts such as Deployments, Services, Secrets, and inter-service communication.
+A production-style deployment of the [Docker Example Voting App](https://github.com/dockersamples/example-voting-app) on AWS EKS, provisioned end-to-end with Terraform. The project covers the full path from infrastructure to running application: VPC networking, an EKS cluster with autoscaling node groups, RDS (PostgreSQL) and ElastiCache (Redis) in place of in-cluster databases, ECR for container images, and IAM/OIDC-based authentication for both GitHub Actions and in-cluster workloads.
 
----
+On the Kubernetes side, it covers Deployments, Services, ConfigMaps, and RBAC, along with External Secrets Operator for syncing database credentials from AWS Secrets Manager, and the AWS Load Balancer Controller for exposing services to the internet via Ingress/ALB. Deployment is automated through a GitHub Actions pipeline using OIDC federation — no long-lived AWS credentials stored in CI.---
 
 ## Architecture
 
@@ -10,112 +10,112 @@ A hands-on Kubernetes deployment of the [Docker Example Voting App](https://gith
 
 ---
 
-## Getting Started
+## Prerequisites
 
-### 1. Start Minikube
+- `kubectl`
+- `terraform`
+- `helm`
+- `aws cli`
 
-```bash
-minikube start
-```
+## Deployment Steps
 
-### 2. Point Docker CLI to Minikube's daemon
-
-This is required so images built locally are available inside the Minikube cluster:
-
-```bash
-eval $(minikube docker-env)
-```
-
-> **Note:** This only applies to your current terminal session. Run this command again if you open a new terminal.
-
----
-
-## Build Images
-
-Navigate to the root of the cloned voting app and build each service image:
+### 1. Provision infrastructure
 
 ```bash
-# Vote frontend
-docker build -t vote ./vote
-
-# Result frontend
-docker build -t result ./result
-
-# Worker
-docker build -t worker ./worker
+terraform apply
 ```
 
----
-
-## Deploy to Kubernetes
-
-Apply all manifests from this repository:
+### 2. Point kubectl at the cluster
 
 ```bash
-# Deploy Redis
-kubectl apply -f manifests/redis-deployment.yaml
-
-# Deploy PostgreSQL
-kubectl apply -f manifests/postgres-deployment.yaml
-
-# Deploy Secrets
-kubectl apply -f manifests/secrets.yaml
-
-# Deploy Worker
-kubectl apply -f manifests/worker-deployment.yaml
-
-# Deploy Vote frontend
-kubectl apply -f manifests/vote-deployment.yaml
-
-# Deploy Result frontend
-kubectl apply -f manifests/result-deployment.yaml
+aws eks update-kubeconfig --region ap-southeast-1 --name voting-app-eks
+kubectl get nodes
 ```
 
-Verify all pods are running:
+### 3. Push application images to ECR
+
+Run the **"Build and Push"** GitHub Action to build and push `vote`, `worker`, and `result` images to their ECR repositories.
+
+### 4. Verify GitHub Actions variables
+
+Confirm the following variables are up to date before deploying:
+
+- `RDS_ENDPOINT`
+- `REDIS_ENDPOINT`
+- `POSTGRES_SECRET_NAME` — needs update every rebuild
+- `IMAGE_TAG` — needs update every deploy
+
+### 5. Manually bootstrap cluster-scoped resources
+
+These cannot be applied by the CI/CD pipeline (its IAM role is deliberately scoped to namespace-level, non-cluster-scoped resources). Apply them yourself, using your own admin access:
 
 ```bash
-kubectl get pods
-kubectl get services
+kubectl apply -f manifests/rbac.yaml
+kubectl apply -f manifests/clustersecretstore.yaml
 ```
 
-You should see all five pods with status `Running`.
-
----
-
-## Access the Application
-
-Get your Minikube IP:
+Verify:
 
 ```bash
-minikube ip
+kubectl auth can-i create deployments \
+  --as=arn:aws:iam::653236170203:role/VotingAppEKSKubernetesDeploymentRole \
+  --as-group=k8s-deploy-group -n default
+kubectl get clustersecretstore aws-secretsmanager
 ```
 
-Then open your browser:
+### 6. Deploy the application
 
-| Service | URL                          |
-| ------- | ---------------------------- |
-| Vote    | `http://<minikube-ip>:30001` |
-| Result  | `http://<minikube-ip>:30002` |
+Run the **"Deploy to EKS"** GitHub Action. This will:
 
-Cast a vote at the Vote URL and see results update in real time at the Result URL.
+- Substitute account ID, region, endpoints, secret name, and image tag into the manifests
+- Apply the `ExternalSecret` and wait for it to sync
+- Apply the ConfigMap and Deployments
+- Restart deployments to pick up any ConfigMap/Secret changes
+- Verify rollout status
 
----
-
-## Cleanup
-
-To delete all deployed resources:
+### 7. Verify
 
 ```bash
-kubectl delete -f manifests/
+kubectl get pods -n default
+kubectl get ingress -n default
 ```
 
-To stop Minikube:
+Open the ALB address shown in `kubectl get ingress` to confirm `vote` and `result` are reachable.
+
+## Teardown
+
+**Always delete Ingress objects before destroying infrastructure.** The AWS Load Balancer Controller creates real ALBs outside of Terraform's state — if they're not removed first, `terraform destroy` will fail (or hang) trying to detach the Internet Gateway, since the ALB still holds a public IP in the VPC.
 
 ```bash
-minikube stop
+kubectl delete ingress --all --all-namespaces
+aws elbv2 describe-load-balancers --query "LoadBalancers[*].LoadBalancerName"   # confirm none remain
+terraform destroy
 ```
 
----
+If `terraform destroy` fails with a Kubernetes credentials/permissions error, your personal admin access entry may have been removed before other resources needing live cluster access. Re-add it manually and retry:
+
+```bash
+aws eks create-access-entry \
+  --cluster-name voting-app-eks \
+  --principal-arn arn:aws:iam::653236170203:user/bav-admin-user
+
+aws eks associate-access-policy \
+  --cluster-name voting-app-eks \
+  --principal-arn arn:aws:iam::653236170203:user/bav-admin-user \
+  --policy-arn arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy \
+  --access-scope type=cluster
+
+terraform destroy
+```
+
+## Known Gotchas
+
+- **Stale kubeconfig**: every cluster recreate produces a new API endpoint. Always re-run `aws eks update-kubeconfig` after a rebuild.
+- **ESO credential timing**: if `ClusterSecretStore` shows `InvalidProviderConfig` with an IMDS-related error, the ExternalSecrets pod likely started before its Pod Identity association existed. Restart it:
+  ```bash
+  kubectl rollout restart deployment/external-secrets -n external-secrets
+  ```
+- **Node pod capacity**: a single `t3.small` node can run out of pod slots quickly. Check `desired_size`/`min_size` in the node group if pods are stuck `Pending` with a "Too many pods" event.
 
 ## Reference
 
